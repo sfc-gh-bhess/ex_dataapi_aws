@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+    <body>
+
+    <p>Simple API tester</p>
+
+    <form id="frm1">
+        <table>
+            <tr><td>Method:</td>
+                <td><select name="method">
+                    <option value="GET">GET</option>
+                    <option value="POST">POST</option>
+                </select>
+                </td>
+            </tr>
+            <tr><td>API URL:</td><td><input type="text" name="apiurl" size="100"></td></tr>
+            <tr><td>API Username:</td><td><input type="text" name="username" size="20"></td></tr>
+            <tr><td>API Password:</td><td><input type="password" name="password" size="20"></td></tr>
+        </table>
+        <input type="button" onclick="myFunction()" value="Submit">
+    </form>
+
+    <hr>
+    <p id="output"></p>
+
+    <script>
+        function myFunction() {
+            d = document.getElementById("frm1").elements;
+            method = d[0].value
+            apiurl = d[1].value
+            username = d[2].value
+            password = d[3].value
+            document.getElementById("output").innerHTML = "Getting Data";
+            fetch(apiurl, {method:method, headers: {'Authorization': 'Basic ' + btoa(username + ':' + password)}})
+                .then(response => response.json())
+                .then(data => document.getElementById("output").innerHTML = "<pre>" + JSON.stringify(data, null, "  ") + "</pre>")
+                .catch(error => document.getElementById("output").innerHTML = "There was an error: " + error)
+        }
+    </script>
+
+    </body>
+</html>

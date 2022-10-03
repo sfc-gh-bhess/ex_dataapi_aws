@@ -1,0 +1,389 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: This stack deploys a REST API for the OAG Flight Schedule data on a Snowflake cluster
+
+Parameters:
+
+  Prefix:
+    Type: String
+    Description: Prefix for resources
+    
+  SnowflakeAccount:
+    Type: String
+    Description: Snowflake account identifier
+
+  SnowflakeUser:
+    Type: String
+    Description: Username for the Snowflake account 
+
+  SnowflakePassword:
+    Type: String
+    Description: Password for the Snowflake account
+    NoEcho: true
+    MinLength: 5
+    
+  SnowflakeWarehouse:
+    Type: String
+    Description: Snowflake warehouse to use
+
+  SnowflakeShareDatabase:
+    Type: String
+    Description: Database that contains the shared OAG data from the Snowflake Marketplace
+
+  APIUsername:
+    Type: String
+    Description: Username to allow access to the API
+    
+  APIPassword:
+    Type: String
+    Description: Password to allow access to the API
+    NoEcho: true
+    MinLength: 4
+
+Resources:
+# Secret Manager
+  SnowflakeSecret:
+    Type: 'AWS::SecretsManager::Secret'
+    Properties:
+      Name: !Sub ${Prefix}-SnowflakeSecret
+      Description: This secret has the credentials for the Snowflake account
+      SecretString:
+        !Join
+          - '' 
+          - - '{"user":"'
+            - !Ref SnowflakeUser
+            - '","password":"'
+            - !Ref SnowflakePassword
+            - '", "account":"'
+            - !Ref SnowflakeAccount
+            - '"}'
+
+# IAM
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSLambdaExecute
+      Policies:
+        - PolicyName: SnowflakeSecret
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - secretsmanager:GetSecretValue
+                Resource: !Ref SnowflakeSecret
+      RoleName: !Sub ${Prefix}-Role-Lambda
+
+# Lambda
+  LambdaLayerPysnow:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub ${Prefix}-Layer-pysnow
+      Description: Layer for Snowflake Python Connector
+      ContentUri: layer-pysnowpark
+      CompatibleRuntimes:
+        - python3.8
+    Metadata:
+      BuildMethod: python3.8
+
+  LambdaFunctionBusyAirports: 
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${Prefix}-snowfunc-busy-airports
+      CodeUri: snow_rest/
+      Handler: app.lambda_handler_busy_airports
+      Layers:
+        - !Ref LambdaLayerPysnow
+      Runtime: python3.8
+      Environment:
+        Variables:
+          DB_SECRET_NAME: !Sub ${Prefix}-SnowflakeSecret
+          DB_WAREHOUSE: !Ref SnowflakeWarehouse
+          SNOW_TABLE: !Sub ${SnowflakeShareDatabase}.PUBLIC.OAG_SCHEDULE
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 30
+
+  LambdaFunctionAirportDaily: 
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${Prefix}-snowfunc-airport-daily
+      CodeUri: snow_rest/
+      Handler: app.lambda_handler_airport_daily
+      Layers:
+        - !Ref LambdaLayerPysnow
+      Runtime: python3.8
+      Environment:
+        Variables:
+          DB_SECRET_NAME: !Sub ${Prefix}-SnowflakeSecret
+          DB_WAREHOUSE: !Ref SnowflakeWarehouse
+          SNOW_TABLE: !Sub ${SnowflakeShareDatabase}.PUBLIC.OAG_SCHEDULE
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 30
+
+  LambdaFunctionAirportDailyCarriers: 
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${Prefix}-snowfunc-airport-daily-carriers
+      CodeUri: snow_rest/
+      Handler: app.lambda_handler_airport_daily_carriers
+      Layers:
+        - !Ref LambdaLayerPysnow
+      Runtime: python3.8
+      Environment:
+        Variables:
+          DB_SECRET_NAME: !Sub ${Prefix}-SnowflakeSecret
+          DB_WAREHOUSE: !Ref SnowflakeWarehouse
+          SNOW_TABLE: !Sub ${SnowflakeShareDatabase}.PUBLIC.OAG_SCHEDULE
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 30
+
+  LambdaBasicAuthFunction: 
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub ${Prefix}-BasicAuth
+      Handler: auth.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Runtime: python3.8
+      Environment:
+        Variables:
+          USERNAME: !Ref APIUsername
+          PASSWORD: !Ref APIPassword
+      CodeUri: rest_auth/
+      Timeout: 5
+
+  LambdaPermissionAPIBusyAirports:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt LambdaFunctionBusyAirports.Arn
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: 
+        !Join
+          - ''
+          - - 'arn:aws:execute-api:'
+            - !Ref AWS::Region
+            - ':'
+            - !Ref AWS::AccountId
+            - ':'
+            - !Ref APISnow
+            - '/*/*/*'
+
+  LambdaPermissionAPIAirportDaily:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt LambdaFunctionAirportDaily.Arn
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: 
+        !Join
+          - ''
+          - - 'arn:aws:execute-api:'
+            - !Ref AWS::Region
+            - ':'
+            - !Ref AWS::AccountId
+            - ':'
+            - !Ref APISnow
+            - '/*/*/*'
+
+  LambdaPermissionAPIAirportDailyCarriers:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt LambdaFunctionAirportDailyCarriers.Arn
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: 
+        !Join
+          - ''
+          - - 'arn:aws:execute-api:'
+            - !Ref AWS::Region
+            - ':'
+            - !Ref AWS::AccountId
+            - ':'
+            - !Ref APISnow
+            - '/*/*/*'
+
+  LambdaPermissionAPIBasicAuth:
+    DependsOn: LambdaBasicAuthFunction
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt LambdaBasicAuthFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: 
+        !Join
+          - ''
+          - - 'arn:aws:execute-api:'
+            - !Ref AWS::Region
+            - ':'
+            - !Ref AWS::AccountId
+            - ':'
+            - !Ref APISnow
+            - '/*/*'
+
+# API 
+  APISnow:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: !Sub ${Prefix}
+      CorsConfiguration:
+        AllowOrigins: 
+          - '*'
+        AllowHeaders: 
+          - Content-Type
+          - Authorization
+        AllowMethods: 
+          - GET
+          - POST
+          - OPTIONS
+      DefinitionBody: 
+
+        openapi: "3.0.1"
+        info:
+          title: !Sub ${Prefix}
+        paths:
+          /snow/airport_daily/{airport}:
+            get:
+              responses:
+                default:
+                  description: "Default response for GET /snow/airport_daily/{airport}"
+              security:
+              - auth: []
+              x-amazon-apigateway-integration:
+                payloadFormatVersion: "2.0"
+                type: "aws_proxy"
+                httpMethod: "POST"
+                uri: 
+                  !Join
+                    - ''
+                    - - 'arn:aws:apigateway:'
+                      - !Ref AWS::Region
+                      - ':lambda:path/2015-03-31/functions/'
+                      - !GetAtt LambdaFunctionAirportDaily.Arn
+                      - '/invocations'
+                connectionType: "INTERNET"
+            parameters:
+            - name: "airport"
+              in: "path"
+              required: true
+              schema:
+                type: "string"
+            - name: "begin"
+              in: "query"
+              schema:
+                type: "string"
+            - name: "end"
+              in: "query"
+              schema:
+                type: "string"
+          /snow/busy_airports:
+            get:
+              responses:
+                default:
+                  description: "Default response for GET /snow/busy_airports"
+              security:
+              - auth: []
+              x-amazon-apigateway-integration:
+                payloadFormatVersion: "2.0"
+                type: "aws_proxy"
+                httpMethod: "POST"
+                uri: 
+                  !Join
+                    - ''
+                    - - 'arn:aws:apigateway:'
+                      - !Ref AWS::Region
+                      - ':lambda:path/2015-03-31/functions/'
+                      - !GetAtt LambdaFunctionBusyAirports.Arn
+                      - '/invocations'
+                connectionType: "INTERNET"
+            parameters:
+            - name: "begin"
+              in: "query"
+              schema:
+                type: "string"
+            - name: "end"
+              in: "query"
+              schema:
+                type: "string"
+            - name: "deparr"
+              in: "query"
+              schema:
+                type: "string"
+            - name: "nrows"
+              in: "query"
+              schema:
+                type: "integer"
+
+          /snow/airport_daily_carriers/{airport}:
+            post:
+              responses:
+                default:
+                  description: "Default response for POST /snow/airport_daily_carriers/{airport}"
+              security:
+              - auth: []
+              x-amazon-apigateway-integration:
+                payloadFormatVersion: "2.0"
+                type: "aws_proxy"
+                httpMethod: "POST"
+                uri: 
+                  !Join
+                    - ''
+                    - - 'arn:aws:apigateway:'
+                      - !Ref AWS::Region
+                      - ':lambda:path/2015-03-31/functions/'
+                      - !GetAtt LambdaFunctionAirportDailyCarriers.Arn
+                      - '/invocations'
+                connectionType: "INTERNET"
+            parameters:
+            - name: "airport"
+              in: "path"
+              required: true
+              schema:
+                type: "string"
+            - name: "begin"
+              in: "query"
+              schema:
+                type: "string"
+            - name: "end"
+              in: "query"
+              schema:
+                type: "string"
+            - name: "deparr"
+              in: "query"
+              schema:
+                type: "string"
+        components:
+          securitySchemes:
+            auth:
+              type: "apiKey"
+              name: "Authorization"
+              in: "header"
+              x-amazon-apigateway-authorizer:
+                identitySource: "$request.header.Authorization"
+                authorizerUri: 
+                  !Join
+                    - ''
+                    - - 'arn:aws:apigateway:'
+                      - !Ref AWS::Region
+                      - ':lambda:path/2015-03-31/functions/'
+                      - !GetAtt LambdaBasicAuthFunction.Arn
+                      - '/invocations'
+                authorizerPayloadFormatVersion: "2.0"
+                authorizerResultTtlInSeconds: 300
+                type: "request"
+                enableSimpleResponses: false
+
+Outputs:
+  APIRoot:
+    Value: !Sub https://${APISnow}.execute-api.${AWS::Region}.amazonaws.com/${Prefix}/snow
