@@ -120,6 +120,9 @@ Then navigate to the `index.html` page in this repository. There you will see a 
 you can choose `GET` or `POST`, fill in the endpoint and query parameters, and enter the
 API username and password. This will also test the CORS situation, as well.
 
+It is also hosted in GitHub and can be pointed at your deployed API at:
+[https://sfc-gh-brianhess.github.io/ex_dataapi_aws/](https://sfc-gh-brianhess.github.io/ex_dataapi_aws/)
+
 ## Beyond This Example
 While this example is fully functional, it does have some simplifications that might not
 be sufficient for production. This repository is provided as an example and it is intended 
