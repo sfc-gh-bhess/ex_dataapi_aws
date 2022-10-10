@@ -9,7 +9,10 @@ def busy_airports(session, begin, end, deparr, nrows):
     if begin and end:
         df = df.filter((col('FLIGHT_DATE') >= begin) & (col('FLIGHT_DATE') <= end))
     deparr = deparr if deparr == 'ARRAPT' else 'DEPAPT'
-    nrows = nrows or 20
+    try:
+        nrows = int(nrows)
+    except:
+        nrows = 20
     df = df.group_by(col(deparr)) \
                     .agg(f.count(deparr).alias('ct')) \
                     .sort(col('ct').desc()) \
