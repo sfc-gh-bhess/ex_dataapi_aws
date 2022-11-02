@@ -1,7 +1,12 @@
 import boto3
+import logging
 import os
 import json
 from snowflake.snowpark import Session
+
+# Set Logging Level
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 session = None
 db_secret_name = os.environ['DB_SECRET_NAME']
@@ -18,6 +23,7 @@ def get_credentials():
         secret_json = json.loads(secret)
         return secret_json
     except Exception as ex:
+        logger.error('Failed to retrieve credentials from Secrets Manager: ' + str(ex))
         raise
 
 ## SNOWFLAKE CONNECTION
@@ -32,5 +38,6 @@ def get_db_client():
             session = Session.builder.configs(creds).create()
             print("Connection established")
         except Exception as ex:
+            logger.error('Failed to connect: ' + str(ex))
             raise
     return session

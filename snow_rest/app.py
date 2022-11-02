@@ -1,5 +1,4 @@
 import json
-import os
 import datetime
 import logging
 
@@ -37,29 +36,28 @@ def wrap_return(body):
         'body': json.dumps(stringify(body))
     }
 
+session = snow_session.get_db_client()
+
 def lambda_handler_busy_airports(event, context):
     logger.info(f"EVENT: {json.dumps(event)}")
-    snow_session.get_db_client()
     begin = get_parameter(event, 'queryStringParameters', 'begin')
     end = get_parameter(event, 'queryStringParameters', 'end')
     deparr = get_parameter(event, 'queryStringParameters', 'deparr')
     nrows = get_parameter(event, 'queryStringParameters', 'nrows')
-    return wrap_return(snow_procs.busy_airports(snow_session.session, begin, end, deparr, nrows))
+    return wrap_return(snow_procs.busy_airports(session, begin, end, deparr, nrows))
 
 def lambda_handler_airport_daily(event, context):
     logger.info(f"EVENT: {json.dumps(event)}")
-    snow_session.get_db_client()
     airport = get_parameter(event, 'pathParameters', 'airport')
     begin = get_parameter(event, 'queryStringParameters', 'begin')
     end = get_parameter(event, 'queryStringParameters', 'end')
-    return wrap_return(snow_procs.airport_daily(snow_session.session, airport, begin, end))
+    return wrap_return(snow_procs.airport_daily(session, airport, begin, end))
 
 def lambda_handler_airport_daily_carriers(event, context):
     logger.info(f"EVENT: {json.dumps(event)}")
-    snow_session.get_db_client()
     airport = get_parameter(event, 'pathParameters', 'airport')
     begin = get_parameter(event, 'queryStringParameters', 'begin')
     end = get_parameter(event, 'queryStringParameters', 'end')
     deparr = get_parameter(event, 'queryStringParameters', 'deparr')
-    return wrap_return(snow_procs.airport_daily_carriers(snow_session.session, airport, begin, end, deparr))
+    return wrap_return(snow_procs.airport_daily_carriers(session, airport, begin, end, deparr))
 
