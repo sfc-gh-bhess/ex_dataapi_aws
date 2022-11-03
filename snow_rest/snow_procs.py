@@ -18,7 +18,8 @@ def busy_airports(session, begin, end, deparr, nrows):
             d_end = datetime.date.fromisoformat(end)
             df = df.filter((col('FLIGHT_DATE') >= d_begin) & (col('FLIGHT_DATE') <= d_end))
         except Exception as ex:
-            logger.warning('Bad dates provided. Querying without date range: ' + str(ex))
+            logger.error('Bad dates provided: ' + str(ex))
+            raise
     deparr = deparr if deparr == 'ARRAPT' else 'DEPAPT'
     try:
         nrows = int(nrows)
@@ -68,7 +69,8 @@ def airport_daily_carriers(session, apt, begin, end, deparr):
             d_end = datetime.date.fromisoformat(end)
             df = df.filter((col('FLIGHT_DATE') >= d_begin) & (col('FLIGHT_DATE') <= d_end))
         except Exception as ex:
-            logger.warning('Bad dates provided. Querying without date range: ' + str(ex))
+            logger.error('Bad dates provided: ' + str(ex))
+            raise
     deparr = deparr if deparr == 'ARRAPT' else 'DEPAPT'
     df = df.filter(col('CARRIER').isin(list(airline_list.keys()))) \
         .filter(col(deparr) == apt) \
