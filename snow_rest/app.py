@@ -30,9 +30,9 @@ def stringify(doc):
 def get_parameter(event, pkey, key):
     return event.get(pkey).get(key) if event.get(pkey) else None
 
-def wrap_return(body):
+def wrap_return(body, status=200):
     return {
-        'statusCode': 200,
+        'statusCode': status,
         'body': json.dumps(stringify(body))
     }
 
@@ -44,14 +44,20 @@ def lambda_handler_busy_airports(event, context):
     end = get_parameter(event, 'queryStringParameters', 'end')
     deparr = get_parameter(event, 'queryStringParameters', 'deparr')
     nrows = get_parameter(event, 'queryStringParameters', 'nrows')
-    return wrap_return(snow_procs.busy_airports(session, begin, end, deparr, nrows))
+    try :
+        return wrap_return(snow_procs.busy_airports(session, begin, end, deparr, nrows))
+    except ValueError as e:
+        return wrap_return({'error': str(e)}, 400)
 
 def lambda_handler_airport_daily(event, context):
     logger.info(f"EVENT: {json.dumps(event)}")
     airport = get_parameter(event, 'pathParameters', 'airport')
     begin = get_parameter(event, 'queryStringParameters', 'begin')
     end = get_parameter(event, 'queryStringParameters', 'end')
-    return wrap_return(snow_procs.airport_daily(session, airport, begin, end))
+    try:
+        return wrap_return(snow_procs.airport_daily(session, airport, begin, end))
+    except ValueError as e:
+        return wrap_return({'error': str(e)}, 400)
 
 def lambda_handler_airport_daily_carriers(event, context):
     logger.info(f"EVENT: {json.dumps(event)}")
@@ -59,5 +65,8 @@ def lambda_handler_airport_daily_carriers(event, context):
     begin = get_parameter(event, 'queryStringParameters', 'begin')
     end = get_parameter(event, 'queryStringParameters', 'end')
     deparr = get_parameter(event, 'queryStringParameters', 'deparr')
-    return wrap_return(snow_procs.airport_daily_carriers(session, airport, begin, end, deparr))
+    try:
+        return wrap_return(snow_procs.airport_daily_carriers(session, airport, begin, end, deparr))
+    except ValueError as e:
+        return wrap_return({'error': str(e)}, 400)
 

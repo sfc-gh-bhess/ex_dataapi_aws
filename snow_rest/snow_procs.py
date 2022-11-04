@@ -17,14 +17,15 @@ def busy_airports(session, begin, end, deparr, nrows):
             d_begin = datetime.date.fromisoformat(begin)
             d_end = datetime.date.fromisoformat(end)
             df = df.filter((col('FLIGHT_DATE') >= d_begin) & (col('FLIGHT_DATE') <= d_end))
-        except Exception as ex:
+        except ValueError as ex:
             logger.error('Bad dates provided: ' + str(ex))
-            raise
+            raise ValueError("Error: Bad dates provided")
     deparr = deparr if deparr == 'ARRAPT' else 'DEPAPT'
     try:
-        nrows = int(nrows)
-    except:
-        nrows = 20
+        nrows = int(nrows or 20)
+    except ValueError as ex:
+        logger.error('nrows must be an integer')
+        raise ValueError('nrows must be an integer')
     df = df.group_by(col(deparr)) \
                     .agg(f.count(deparr).alias('ct')) \
                     .sort(col('ct').desc()) \
@@ -68,9 +69,9 @@ def airport_daily_carriers(session, apt, begin, end, deparr):
             d_begin = datetime.date.fromisoformat(begin)
             d_end = datetime.date.fromisoformat(end)
             df = df.filter((col('FLIGHT_DATE') >= d_begin) & (col('FLIGHT_DATE') <= d_end))
-        except Exception as ex:
+        except ValueError as ex:
             logger.error('Bad dates provided: ' + str(ex))
-            raise
+            raise ValueError("Error: Bad dates provided")
     deparr = deparr if deparr == 'ARRAPT' else 'DEPAPT'
     df = df.filter(col('CARRIER').isin(list(airline_list.keys()))) \
         .filter(col(deparr) == apt) \
@@ -81,6 +82,6 @@ def airport_daily_carriers(session, apt, begin, end, deparr):
         retval = [x.as_dict() for x in df.to_local_iterator()]
     except Exception as ex:
         logger.error('Failed to retrieve data frame: ' + str(ex))
-        raise
+        raise Exception("Error reading from Snowflake. Check the logs for details.")
     return retval
 
