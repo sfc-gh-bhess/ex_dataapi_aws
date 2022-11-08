@@ -40,7 +40,13 @@ def busy_airports(session, begin, end, deparr, nrows):
 def airport_daily(session, apt, begin, end):
     df = session.table(table)
     if begin and end:
-        df = df.filter((col('FLIGHT_DATE') >= begin) & (col('FLIGHT_DATE') <= end))
+        try:
+            d_begin = datetime.date.fromisoformat(begin)
+            d_end = datetime.date.fromisoformat(end)
+            df = df.filter((col('FLIGHT_DATE') >= d_begin) & (col('FLIGHT_DATE') <= d_end))
+        except ValueError as ex:
+            logger.error('Bad dates provided: ' + str(ex))
+            raise ValueError("Error: Bad dates provided")
     df = df.group_by(col('FLIGHT_DATE')) \
         .agg([ \
                 f.sum(f.when(col('DEPAPT') == apt, f.lit(1)).otherwise(f.lit(0))).alias('depct'), \
