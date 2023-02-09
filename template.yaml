@@ -237,7 +237,7 @@ Resources:
 
 # API 
   APISnow:
-    Type: AWS::Serverless::RestApi
+    Type: AWS::Serverless::HttpApi
     Properties:
       StageName: !Sub ${Prefix}
       CorsConfiguration:
