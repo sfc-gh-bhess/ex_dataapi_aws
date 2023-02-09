@@ -266,7 +266,7 @@ Resources:
               x-amazon-apigateway-integration:
                 payloadFormatVersion: "2.0"
                 type: "aws_proxy"
-                httpMethod: "GET"
+                httpMethod: "POST"
                 uri: 
                   !Join
                     - ''
@@ -300,7 +300,7 @@ Resources:
               x-amazon-apigateway-integration:
                 payloadFormatVersion: "2.0"
                 type: "aws_proxy"
-                httpMethod: "GET"
+                httpMethod: "POST"
                 uri: 
                   !Join
                     - ''
@@ -338,7 +338,7 @@ Resources:
               x-amazon-apigateway-integration:
                 payloadFormatVersion: "2.0"
                 type: "aws_proxy"
-                httpMethod: "GET"
+                httpMethod: "POST"
                 uri: 
                   !Join
                     - ''
