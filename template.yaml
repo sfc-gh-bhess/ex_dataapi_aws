@@ -240,16 +240,17 @@ Resources:
     Type: AWS::Serverless::Api
     Properties:
       StageName: !Sub ${Prefix}
-      CorsConfiguration:
-        AllowOrigins: 
-          - '*'
-        AllowHeaders: 
-          - Content-Type
-          - Authorization
-        AllowMethods: 
-          - GET
-          - POST
-          - OPTIONS
+      #Cors:
+      #  #CorsConfiguration:
+      #  AllowOrigins: 
+      #    - '*'
+      #  AllowHeaders: 
+      #    - Content-Type
+      #    - Authorization
+      #  AllowMethods: 
+      #    - GET
+      #    - POST
+      #    - OPTIONS
       DefinitionBody: 
 
         openapi: "3.0.1"
